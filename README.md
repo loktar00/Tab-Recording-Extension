@@ -2,7 +2,9 @@
 
 A Chrome extension that allows you to record your current tab, screen, or specific window.
 
-## Features
+Came about from always running a random html file I made years ago on my desktop to record videos for pull requests. This works exactly the same way using pretty simple built in methods but just offloads it to an extension so it's always available.
+
+## Current Features
 
 - 📱 Tab recording
 - 🖥️ Screen recording
@@ -24,14 +26,10 @@ A Chrome extension that allows you to record your current tab, screen, or specif
 3. Click "Stop Recording" when done
 4. Recording downloads automatically
 
-## Files
-
-- `manifest.json` - Extension configuration
-- `popup.html/js` - Extension popup UI and logic
-- `background.js` - Service worker
-- `content.js` - Content script
-- `offscreen.html/js` - Offscreen document for recording
-- `icons/` - Extension icons
+## Upcoming Features
+* Ability to select an area of a tab/page to record
+* Cropping in leui of the above depending on whats possible
+* Click pings within the recording
 
 ## License
 
