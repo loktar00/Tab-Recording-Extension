@@ -1,6 +1,31 @@
 // This offscreen document handles the actual recording
 let mediaRecorder;
 let recordedChunks = [];
+let recordingMimeType = '';
+
+function getPreferredMimeType() {
+    // Prefer MP4 with H.264+AAC for maximum compatibility (Twitter, Handbrake, etc.)
+    const types = [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4;codecs=avc1.42E01E',
+        'video/mp4',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp8',
+        'video/webm',
+    ];
+
+    for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+            console.log('Using mimeType:', type);
+            return type;
+        }
+    }
+
+    console.warn('No preferred mimeType supported, using browser default');
+    return '';
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('Offscreen received message:', request.action);
@@ -40,9 +65,15 @@ async function startRecording() {
 
         recordedChunks = [];
 
-        mediaRecorder = new MediaRecorder(stream, {
-            videoBitsPerSecond: 25000000
-        });
+        recordingMimeType = getPreferredMimeType();
+        const recorderOptions = {
+            videoBitsPerSecond: 25000000,
+        };
+        if (recordingMimeType) {
+            recorderOptions.mimeType = recordingMimeType;
+        }
+
+        mediaRecorder = new MediaRecorder(stream, recorderOptions);
 
         mediaRecorder.ondataavailable = (e) => {
             if (e.data.size > 0) {
@@ -59,7 +90,15 @@ async function startRecording() {
             chrome.runtime.sendMessage({ action: 'recordingComplete' });
         };
 
-        mediaRecorder.start(200);
+        // MP4 doesn't support chunked concatenation properly — record as a
+        // single segment so the container/moov atom are written correctly.
+        // WebM handles timeslice fine, so we can still chunk there to limit
+        // memory pressure on very long recordings.
+        if (recordingMimeType.includes('mp4')) {
+            mediaRecorder.start();
+        } else {
+            mediaRecorder.start(200);
+        }
         console.log('Recording started successfully');
 
     } catch (error) {
@@ -81,16 +120,16 @@ function stopRecording() {
 }
 
 function saveFile(recordedChunks) {
-    const blob = new Blob(recordedChunks, {
-        type: 'video/mp4;codecs=h264'
-    });
+    const mimeType = recordingMimeType || mediaRecorder?.mimeType || 'video/webm';
+    const blob = new Blob(recordedChunks, { type: mimeType });
 
+    const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const filename = `recording-${timestamp}`;
 
     const downloadLink = document.createElement('a');
     downloadLink.href = URL.createObjectURL(blob);
-    downloadLink.download = `${filename}.mp4`;
+    downloadLink.download = `${filename}.${extension}`;
 
     document.body.appendChild(downloadLink);
     downloadLink.click();
