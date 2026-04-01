@@ -4,16 +4,25 @@ let recordedChunks = [];
 let recordingMimeType = '';
 
 function getPreferredMimeType() {
-    // Prefer MP4 with H.264+AAC for maximum compatibility (Twitter, Handbrake, etc.)
+    // VP9 is the best choice for screen recording: its encoder has screen content
+    // detection that preserves sharp color edges (text, UI elements) without the
+    // chroma bleeding that H.264 Baseline (4:2:0 + CAVLC) causes.
+    //
+    // AV1 is intentionally excluded — Chrome can encode it, but Windows requires
+    // a separate decoder from the Microsoft Store, so output files won't play
+    // on most machines out of the box.
+    //
+    // H.264 is kept as a last resort for compatibility, but will show color
+    // artifacts on screen content with hard color edges.
     const types = [
-        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-        'video/mp4;codecs=avc1.42E01E',
-        'video/mp4',
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8,opus',
-        'video/webm;codecs=vp8',
-        'video/webm',
+        'video/webm;codecs=vp9,opus',   // VP9 + Opus — best screen quality
+        'video/webm;codecs=vp9',         // VP9 without audio
+        'video/webm;codecs=vp8,opus',    // VP8 + Opus — decent fallback
+        'video/webm;codecs=vp8',         // VP8 without audio
+        'video/mp4;codecs=avc1,mp4a.40.2', // H.264 + AAC (let browser pick profile)
+        'video/mp4;codecs=avc1',         // H.264 only
+        'video/mp4',                     // Generic MP4
+        'video/webm',                    // Generic WebM
     ];
 
     for (const type of types) {
